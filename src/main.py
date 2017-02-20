@@ -1,9 +1,4 @@
-from flask import Flask
-app = Flask(__name__)
+from w1thermsensor import W1ThermSensor
 
-@app.route('/')
-def hello_world():
-    return 'Hello World!'
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=80)
+for sensor in W1ThermSensor.get_available_sensors():
+    print("Sensor %s has temperature %.2f" % (sensor.id, sensor.get_temperature()))
