@@ -1,1 +1,2 @@
 w1thermsensor==0.3.2
+flexx==0.4.1
