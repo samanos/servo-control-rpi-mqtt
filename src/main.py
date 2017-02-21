@@ -10,7 +10,7 @@ class Relay(event.HasEvents):
 
     @event.emitter
     def system_info(self):
-        temperature = [(sensor.id, sensor.sensor.get_temperature()) for sensor in W1ThermSensor.get_available_sensors()]
+        temperature = [(sensor.id, sensor.get_temperature()) for sensor in W1ThermSensor.get_available_sensors()]
         return dict(temp=temperature)
 
     def refresh(self):
