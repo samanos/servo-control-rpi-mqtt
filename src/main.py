@@ -1,9 +1,21 @@
+from flexx import app, ui, event
 from w1thermsensor import W1ThermSensor
 
-import time
-import random
 
-from flexx import app, ui, event
+class Relay(event.HasEvents):
+
+    def __init__(self):
+        super().__init__()
+        self.refresh()
+
+    @event.emitter
+    def system_info(self):
+        temperature = [(sensor.id, sensor.sensor.get_temperature()) for sensor in W1ThermSensor.get_available_sensors()]
+        return dict(temp=temperature)
+
+    def refresh(self):
+        self.system_info()
+        app.call_later(1, self.refresh)
 
 
 class Monitor(ui.Widget):
@@ -14,14 +26,18 @@ class Monitor(ui.Widget):
                 self.info = ui.Label(text='...')
                 ui.Widget(flex=1)
 
-        self.refresh()
+        # Relay global info into this app
+        relay.connect(self.push_info, 'system_info:' + self.id)
 
-    def refresh(self):
-        for sensor in W1ThermSensor.get_available_sensors():
-            self.info.text = "Sensor %s has temperature %.2f" % (sensor.id, sensor.get_temperature())
-            print("Sensor %s has temperature %.2f" % (sensor.id, sensor.get_temperature()))
+    def push_info(self, *events):
+        ev = events[-1]
+        self.info.text = "Temperatures" % (ev.temp)
+        print("Temperatures" % (ev.temp))
 
-        app.call_later(1, self.refresh)
+
+# Create global relay
+relay = Relay()
+
 
 
 if __name__ == '__main__':
