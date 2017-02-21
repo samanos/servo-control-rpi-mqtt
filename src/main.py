@@ -11,6 +11,7 @@ class Relay(event.HasEvents):
     @event.emitter
     def system_info(self):
         temperature = [(sensor.id, sensor.get_temperature()) for sensor in W1ThermSensor.get_available_sensors()]
+        print("Temperature %s" % temperature)
         return dict(temp=temperature)
 
     def refresh(self):
@@ -31,8 +32,7 @@ class Monitor(ui.Widget):
 
     def push_info(self, *events):
         ev = events[-1]
-        self.info.text = "Temperatures" % (ev.temp)
-        print("Temperatures" % (ev.temp))
+        self.info.text = "Temperature %s" % (ev.temp)
 
 
 # Create global relay
