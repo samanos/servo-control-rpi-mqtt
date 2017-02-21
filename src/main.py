@@ -43,7 +43,7 @@ class Monitor(ui.Widget):
         p.ChangeDutyCycle(self.pulse)
 
     @event.connect('right.mouse_click')
-    def left_button_clicked(self, *events):
+    def right_button_clicked(self, *events):
         self.pulse = self.pulse - 10
         p.ChangeDutyCycle(self.pulse)
 
