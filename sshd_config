@@ -6,7 +6,6 @@ AllowUsers user
 AllowGroups user
 AllowTcpForwarding no
 AuthorizedKeysFile	.ssh/authorized_keys
-#SyslogFacility AUTHPRIV
 ChallengeResponseAuthentication no
 
 Compression yes
@@ -22,7 +21,6 @@ PidFile /var/run/sshd.pid
 PrintMotd no
 PubkeyAuthentication yes
 StrictModes yes
-#Subsystem	sftp	/usr/libexec/openssh/sftp-server
 TCPKeepAlive no
 UseDNS yes
 UsePrivilegeSeparation yes
