@@ -42,7 +42,7 @@ class Monitor(ui.Widget):
         self.pulse = self.pulse + 10
         p = GPIO.PWM(12, 100)
         p.start(0)
-        for dc in range(0, 20, 1):
+        for dc in range(0, 31, 1):
             p.ChangeDutyCycle(dc)
             time.sleep(0.01)
         p.stop()
@@ -53,7 +53,7 @@ class Monitor(ui.Widget):
         self.pulse = self.pulse - 10
         p = GPIO.PWM(12, 100)
         p.start(20)
-        for dc in range(20, 0, -1):
+        for dc in range(30, -1, -1):
             p.ChangeDutyCycle(dc)
             time.sleep(0.01)
         p.stop()
