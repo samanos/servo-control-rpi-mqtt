@@ -40,17 +40,23 @@ class Monitor(ui.Widget):
     @event.connect('left.mouse_click')
     def left_button_clicked(self, *events):
         self.pulse = self.pulse + 10
+        p = GPIO.PWM(12, 100)
+        p.start(0)
         for dc in range(0, 20, 1):
             p.ChangeDutyCycle(dc)
             time.sleep(0.01)
+        p.stop()
         #p.ChangeDutyCycle(self.pulse)
 
     @event.connect('right.mouse_click')
     def right_button_clicked(self, *events):
         self.pulse = self.pulse - 10
+        p = GPIO.PWM(12, 100)
+        p.start(20)
         for dc in range(20, 0, -1):
             p.ChangeDutyCycle(dc)
             time.sleep(0.01)
+        p.stop()
         #p.ChangeDutyCycle(self.pulse)
 
 # Create global relay
@@ -59,9 +65,6 @@ relay = Relay()
 import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(12, GPIO.OUT)
-
-p = GPIO.PWM(12, 100)  # channel=12 frequency=50Hz
-p.start(0)
 
 if __name__ == '__main__':
     app.serve(Monitor)

@@ -2,11 +2,10 @@
 # see more about dockerfile templates here:http://docs.resin.io/pages/deployment/docker-templates
 FROM resin/%%RESIN_MACHINE_NAME%%-alpine-python:3.6.0
 
+COPY sshd_config /etc/ssh/sshd_config
+
 RUN apk add --update openssh && \
-    rc-update add sshd && \
-    rc-status && \
-    touch /run/openrc/softlevel && \
-    /etc/init.d/sshd start
+    rc-update add sshd
 
 # Set our working directory
 WORKDIR /usr/src/app
