@@ -2,11 +2,11 @@
 # see more about dockerfile templates here:http://docs.resin.io/pages/deployment/docker-templates
 FROM resin/%%RESIN_MACHINE_NAME%%-alpine-python:3.6.0
 
-# use apt-get if you need to install dependencies,
-# for instance if you need ALSA sound utils, just uncomment the lines below.
-# RUN apt-get update && apt-get install -yq \
-#    alsa-utils libasound2-dev && \
-#    apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apk add --update openssh && \
+    rc-update add sshd && \
+    rc-status && \
+    touch /run/openrc/softlevel && \
+    /etc/init.d/sshd start
 
 # Set our working directory
 WORKDIR /usr/src/app

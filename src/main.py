@@ -1,6 +1,6 @@
 from flexx import app, ui, event
 from w1thermsensor import W1ThermSensor
-
+import time
 
 class Relay(event.HasEvents):
 
@@ -40,12 +40,18 @@ class Monitor(ui.Widget):
     @event.connect('left.mouse_click')
     def left_button_clicked(self, *events):
         self.pulse = self.pulse + 10
-        p.ChangeDutyCycle(self.pulse)
+        for dc in range(0, 20, 1):
+            p.ChangeDutyCycle(dc)
+            time.sleep(0.01)
+        #p.ChangeDutyCycle(self.pulse)
 
     @event.connect('right.mouse_click')
     def right_button_clicked(self, *events):
         self.pulse = self.pulse - 10
-        p.ChangeDutyCycle(self.pulse)
+        for dc in range(20, 0, -1):
+            p.ChangeDutyCycle(dc)
+            time.sleep(0.01)
+        #p.ChangeDutyCycle(self.pulse)
 
 # Create global relay
 relay = Relay()
@@ -54,7 +60,7 @@ import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(12, GPIO.OUT)
 
-p = GPIO.PWM(12, 50)  # channel=12 frequency=50Hz
+p = GPIO.PWM(12, 100)  # channel=12 frequency=50Hz
 p.start(0)
 
 if __name__ == '__main__':
