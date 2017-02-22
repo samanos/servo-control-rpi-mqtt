@@ -1,6 +1,5 @@
 from flexx import app, ui, event
 from w1thermsensor import W1ThermSensor
-import time
 
 class Relay(event.HasEvents):
 
@@ -25,39 +24,19 @@ class Monitor(ui.Widget):
         with ui.HBox():
             with ui.VBox():
                 self.info = ui.Label(text='...')
-                self.left = ui.Button(flex=1, text='Kaire')
-                self.right = ui.Button(flex=1, text='Dešine')
+                self.slider = ui.Slider(flex=1, min=0, max=300, step=1)
 
         # Relay global info into this app
         relay.connect(self.push_info, 'system_info:' + self.id)
 
-        self.pulse = 50
-
     def push_info(self, *events):
         ev = events[-1]
-        self.info.text = "Pulse %s, Temperature %s" % (self.pulse, ev.temp)
+        self.info.text = "Temperature %s" % (ev.temp)
 
-    @event.connect('left.mouse_click')
-    def left_button_clicked(self, *events):
-        self.pulse = self.pulse + 10
-        p = GPIO.PWM(12, 100)
-        p.start(0)
-        for dc in range(0, 31, 1):
-            p.ChangeDutyCycle(dc)
-            time.sleep(0.01)
-        p.stop()
-        #p.ChangeDutyCycle(self.pulse)
-
-    @event.connect('right.mouse_click')
-    def right_button_clicked(self, *events):
-        self.pulse = self.pulse - 10
-        p = GPIO.PWM(12, 100)
-        p.start(20)
-        for dc in range(30, -1, -1):
-            p.ChangeDutyCycle(dc)
-            time.sleep(0.01)
-        p.stop()
-        #p.ChangeDutyCycle(self.pulse)
+    @event.connect('slider.value')
+    def slider_moved(self, *events):
+        duty = float(events[-1].new_value) / 10
+        p.ChangeDutyCycle(duty)
 
 # Create global relay
 relay = Relay()
@@ -65,6 +44,9 @@ relay = Relay()
 import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(12, GPIO.OUT)
+
+p = GPIO.PWM(12, 100)
+p.start(5)
 
 if __name__ == '__main__':
     app.serve(Monitor)
