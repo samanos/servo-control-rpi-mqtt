@@ -19,7 +19,7 @@ class Relay(event.HasEvents):
 
     def get_temperature(self):
         try:
-            return [(sensor.id, sensor.get_temperature()) for sensor in W1ThermSensor.get_available_sensors()]
+            return [sensor.get_temperature() for sensor in W1ThermSensor.get_available_sensors()]
         except FileNotFoundError:
             return [1.11, 2.22, 3.33, 4.44]
 
