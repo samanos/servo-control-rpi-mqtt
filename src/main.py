@@ -25,7 +25,7 @@ class Monitor(ui.Widget):
             with ui.VBox():
                 self.info = ui.Label(text='...')
                 self.slider_info = ui.Label(text='...')
-                self.slider = ui.Slider(flex=1, min=0, max=300, step=1)
+                self.slider = ui.Slider(flex=1, min=500, max=2500, step=1)
 
         # Relay global info into this app
         relay.connect(self.push_info, 'system_info:' + self.id)
@@ -36,19 +36,15 @@ class Monitor(ui.Widget):
 
     @event.connect('slider.value')
     def slider_moved(self, *events):
-        duty = float(events[-1].new_value) / 10
+        duty = events[-1].new_value
         self.slider_info.text = "Slider at %s" % duty
-        p = GPIO.PWM(12, 100)
-        p.start(duty)
-        p.ChangeDutyCycle(duty)
-        p.stop()
+        servo.set_servo(18, duty)
 
 # Create global relay
 relay = Relay()
 
-import RPi.GPIO as GPIO
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(12, GPIO.OUT)
+from RPIO import PWM
+servo = PWM.Servo()
 
 if __name__ == '__main__':
     app.serve(Monitor)

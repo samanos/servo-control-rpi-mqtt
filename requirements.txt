@@ -1,5 +1,5 @@
 click==6.7
 flexx==0.4.1
-RPi.GPIO==0.6.3
+RPIO==0.10.0
 tornado==4.4.2
 w1thermsensor==0.3.2
