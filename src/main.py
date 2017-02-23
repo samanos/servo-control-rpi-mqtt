@@ -25,7 +25,7 @@ class Monitor(ui.Widget):
             with ui.VBox():
                 self.info = ui.Label(text='...')
                 self.slider_info = ui.Label(text='...')
-                self.slider = ui.Slider(flex=1, min=500, max=2500, step=1)
+                self.slider = ui.Slider(flex=1, min=500, max=2500, step=10)
 
         # Relay global info into this app
         relay.connect(self.push_info, 'system_info:' + self.id)

@@ -1,21 +1,21 @@
-Port 50022
-#ListenAddress 0.0.0.0
+Port 22
+ListenAddress 0.0.0.0
 
 Protocol 2
-AllowUsers user
-AllowGroups user
+AllowUsers root
+AllowGroups root
 AllowTcpForwarding no
-AuthorizedKeysFile	.ssh/authorized_keys
+AuthorizedKeysFile	/etc/ssh/authorized_keys
 ChallengeResponseAuthentication no
 
 Compression yes
 GatewayPorts no
 LogLevel VERBOSE
 LoginGraceTime 50s
-PermitRootLogin yes
+PermitRootLogin without-password
 MaxAuthTries 6
 MaxStartups 10
-PasswordAuthentication yes
+PasswordAuthentication no
 PermitUserEnvironment no
 PidFile /var/run/sshd.pid
 PrintMotd no
@@ -27,9 +27,4 @@ UsePrivilegeSeparation yes
 X11DisplayOffset 10
 X11Forwarding no
 X11UseLocalhost yes
-
-#AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
-#AcceptEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
-#AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
-#AcceptEnv XMODIFIERS
 PermitTunnel no
