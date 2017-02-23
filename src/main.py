@@ -25,13 +25,20 @@ class Relay(event.HasEvents):
 
 class Monitor(ui.Widget):
 
+    CSS = """
+    @viewport {
+        width: device-width;
+        zoom: 1.0;
+    }
+    """
+
     min_duty = 500
     init_duty = 700
     max_duty = 3000
 
     def init(self):
-        with ui.HBox():
-            with ui.VBox():
+        with ui.HBox(style='width: 480px'):
+            with ui.VBox(style='height: 200px'):
                 with ui.HBox():
                     self.temps = [
                         ui.Label(text='??°', style='font-weight: bold; font-size: xx-large'),
@@ -54,14 +61,14 @@ class Monitor(ui.Widget):
 
     @event.connect('duty_edit.text')
     def duty_edited(self, *events):
-        duty = int(events[-1].new_value)
+        duty = int(float(events[-1].new_value))
         if self.min_duty <= duty <= self.max_duty:
             self.duty_slider.value = duty
             servo.set_servo(18, duty)
 
     @event.connect('duty_slider.value')
     def duty_slided(self, *events):
-        duty = events[-1].new_value
+        duty = int(float(events[-1].new_value))
         self.duty_edit.text = duty
         servo.set_servo(18, duty)
 
