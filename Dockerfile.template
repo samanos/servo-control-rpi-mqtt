@@ -4,8 +4,10 @@ FROM resin/%%RESIN_MACHINE_NAME%%-alpine-python:3.6.0
 
 COPY sshd_config /etc/ssh/sshd_config
 
-RUN curl https://github.com/2m.keys -o ~/.ssh/authorized_keys
+RUN mkdir ~/.ssh
 RUN chmod 700 ~/.ssh
+
+RUN curl https://github.com/2m.keys -o ~/.ssh/authorized_keys
 RUN chmod 600 ~/.ssh/authorized_keys
 
 RUN apk add --update openssh && \
