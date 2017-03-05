@@ -37,8 +37,8 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe("home/servo")
 
 def on_message(client, userdata, msg):
-    duty = msg.payload
-    print(msg.topic + " " + str(msg.payload))
+    duty = int(msg.payload)
+    servo.set_servo(18, duty)
 
 servo = get_servo()
 
