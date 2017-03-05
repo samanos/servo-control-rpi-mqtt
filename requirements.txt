@@ -1,5 +1,3 @@
-click==6.7
-flexx==0.4.1
-tornado==4.4.2
+paho-mqtt==1.2
+RPIO==0.10.1
 w1thermsensor==0.3.2
-git+https://github.com/metachris/RPIO.git@c4e8b73407ddec416d5cabf5057f5ddf8b699c99#egg=RPIO

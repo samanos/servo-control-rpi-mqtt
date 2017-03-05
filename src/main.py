@@ -1,76 +1,26 @@
-from flexx import app, ui, event
-from w1thermsensor import W1ThermSensor
+import asyncio
+import os
+import ssl
+from tempfile import NamedTemporaryFile
 
-class Relay(event.HasEvents):
+import paho.mqtt.client as paho
 
-    def __init__(self):
-        super().__init__()
-        self.refresh()
 
-    def refresh(self):
-        self.system_info()
-        app.call_later(1, self.refresh)
+TEMPERATURE_REPORT_PERIOD_SECONDS=1
 
-    @event.emitter
-    def system_info(self):
-        temperature = self.get_temperature()
-        print("Temperature %s" % temperature)
-        return dict(temp=temperature)
+@asyncio.coroutine
+def report_temperature():
+    yield from asyncio.sleep(TEMPERATURE_REPORT_PERIOD_SECONDS)
+    for idx, temp in enumerate(get_temperature()):
+        mqtt.publish("dash/temperature/{}".format(idx), "{:4.1f}°".format(temp))
+    asyncio.async(report_temperature())
 
-    def get_temperature(self):
-        try:
-            return [sensor.get_temperature() for sensor in W1ThermSensor.get_available_sensors()]
-        except FileNotFoundError:
-            return [1.11, 2.22, 3.33, 4.44]
-
-class Monitor(ui.Widget):
-
-    CSS = """
-    @viewport {
-        width: device-width;
-        zoom: 1.0;
-    }
-    """
-
-    min_duty = 500
-    init_duty = 700
-    max_duty = 3000
-
-    def init(self):
-        with ui.HBox(style='width: 480px'):
-            with ui.VBox(style='height: 200px'):
-                with ui.HBox():
-                    self.temps = [
-                        ui.Label(text='??°', style='font-weight: bold; font-size: xx-large'),
-                        ui.Label(text='??°', style='font-weight: bold; font-size: xx-large')
-                    ]
-                with ui.HBox():
-                    ui.Label(text="{} <= ".format(self.min_duty))
-                    self.duty_edit = ui.LineEdit(text=self.init_duty)
-                    ui.Label(text=" <= {}".format(self.max_duty))
-                with ui.HBox():
-                    self.duty_slider = ui.Slider(flex=1, min=self.min_duty, max=self.max_duty, step=10)
-
-        # Relay global info into this app
-        relay.connect(self.push_info, 'system_info:' + self.id)
-
-    def push_info(self, *events):
-        ev = events[-1]
-        for temp, label in zip(ev.temp, self.temps):
-            label.text = "{:4.1f}°".format(temp)
-
-    @event.connect('duty_edit.text')
-    def duty_edited(self, *events):
-        duty = int(float(events[-1].new_value))
-        if self.min_duty <= duty <= self.max_duty:
-            self.duty_slider.value = duty
-            servo.set_servo(18, duty)
-
-    @event.connect('duty_slider.value')
-    def duty_slided(self, *events):
-        duty = int(float(events[-1].new_value))
-        self.duty_edit.text = duty
-        servo.set_servo(18, duty)
+def get_temperature():
+    try:
+        from w1thermsensor import W1ThermSensor
+        return [sensor.get_temperature() for sensor in W1ThermSensor.get_available_sensors()]
+    except FileNotFoundError:
+        return [1.11, 2.22, 3.33, 4.44]
 
 class ConsoleServo:
     def set_servo(self, pin, duty):
@@ -84,12 +34,47 @@ def get_servo():
         print("Not runnig on RPi.")
         return ConsoleServo()
 
-# Create global relay
-relay = Relay()
+def on_connect(client, userdata, flags, rc):
+    print("connected")
+    client.subscribe("home/servo")
+
+def on_message(client, userdata, msg):
+    duty = msg.payload
+    print(msg.topic + " " + str(msg.payload))
+
+# def prepare_key_and_certs():
+#     ca_crt = NamedTemporaryFile(delete=False)
+#     ca_crt.write(os.environ.get('MQTT_CA_CRT').replace('\\n', '\n').encode("utf8"))
+#     ca_crt.close()
+#
+#     cl_crt = NamedTemporaryFile(delete=False)
+#     cl_crt.write(os.environ.get('MQTT_CL_CRT').replace('\\n', '\n').encode("utf8"))
+#     cl_crt.close()
+#
+#     private_key = NamedTemporaryFile(delete=False)
+#     private_key.write(os.environ.get('MQTT_PRIVATE_KEY').replace('\\n', '\n').encode("utf8"))
+#     private_key.close()
+#
+#     return (ca_crt.name, cl_crt.name, private_key.name)
 
 servo = get_servo()
 
-if __name__ == '__main__':
-    app.serve(Monitor)
-    # m = app.launch(Monitor)  # for use during development
-    app.start()
+#(ca_crt, cl_crt, private_key) = prepare_key_and_certs()
+
+mqtt = paho.Client()
+mqtt.on_connect = on_connect
+mqtt.on_message = on_message
+# mqtt.tls_set(ca_certs=ca_crt, certfile=cl_crt, keyfile=private_key, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLSv1_2, ciphers=None)
+mqtt.username_pw_set(os.environ.get('MQTT_USERNAME'), os.environ.get('MQTT_PASSWORD'))
+mqtt.connect(os.environ.get('MQTT_HOSTNAME'), int(os.environ.get('MQTT_PORT')), keepalive=60)
+mqtt.loop_start()
+
+loop = asyncio.get_event_loop()
+try:
+    asyncio.async(report_temperature())
+    loop.run_forever()
+except KeyboardInterrupt:
+    pass
+finally:
+    loop.close()
+
