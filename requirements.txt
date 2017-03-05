@@ -1,3 +1,3 @@
 paho-mqtt==1.2
-RPIO==0.10.1
+RPIO==0.10.0
 w1thermsensor==0.3.2
