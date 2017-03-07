@@ -5,6 +5,9 @@ import paho.mqtt.client as paho
 
 
 TEMPERATURE_REPORT_PERIOD_SECONDS=1
+PWM_PIN=18
+RED_LED_PIN=27
+GREEN_LED_PIN=17
 
 @asyncio.coroutine
 def report_temperature():
@@ -16,9 +19,16 @@ def report_temperature():
 def get_temperature():
     try:
         from w1thermsensor import W1ThermSensor
-        return [sensor.get_temperature() for sensor in W1ThermSensor.get_available_sensors()]
+        return [get_temperature_from_sensor(sensor) for sensor in W1ThermSensor.get_available_sensors()]
     except FileNotFoundError:
         return [1.11, 2.22, 3.33, 4.44]
+
+def get_temperature_from_sensor(sensor):
+    from w1thermsensor.core import SensorNotReadyError
+    try:
+        return sensor.get_temperature()
+    except SensorNotReadyError:
+        return 0
 
 class ConsoleServo:
     def set_servo(self, pin, duty):
@@ -32,13 +42,22 @@ def get_servo():
         print("Not runnig on RPi.")
         return ConsoleServo()
 
+def turn_on_green():
+    try:
+        import RPIO
+        RPIO.setup(GREEN_LED_PIN, RPIO.OUT)
+        RPIO.output(GREEN_LED_PIN, True)
+    except SystemError:
+        print("Not runnig on RPi.")
+
 def on_connect(client, userdata, flags, rc):
-    print("connected")
+    print("Connected")
     client.subscribe("home/servo")
+    turn_on_green()
 
 def on_message(client, userdata, msg):
     duty = int(msg.payload)
-    servo.set_servo(18, duty)
+    servo.set_servo(PWM_PIN, duty)
 
 servo = get_servo()
 
