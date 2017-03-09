@@ -1,17 +1,31 @@
 import asyncio
+import logging
 import os
 
 import paho.mqtt.client as paho
 
 
-TEMPERATURE_REPORT_PERIOD_SECONDS=1
-PWM_PIN=18
-RED_LED_PIN=27
-GREEN_LED_PIN=17
+def get_options():
+    import configargparse
+    p = configargparse.ArgParser()
+    p.add('--mqtt-username', required=True, env_var='MQTT_USERNAME', help='MQTT broker username')
+    p.add('--mqtt-password', required=True, env_var='MQTT_PASSWORD', help='MQTT broker password')
+    p.add('--mqtt-hostname', required=True, env_var='MQTT_HOSTNAME', help='MQTT broker hostname')
+    p.add('--mqtt-port', required=True, env_var='MQTT_PORT', type=int, help='MQTT broker port')
+
+    p.add('--servo-bcm-pin', env_var='SERVO_BCM_PIN', type=int, default=18, help='BCM port number where the servo is connected to')
+    p.add('--green-led-bcm-pin', env_var='GREEN_LED_BCM_PIN', type=int, default=17, help='BCM port number where the green led is connected to')
+    p.add('--red-led-bcm-pin', env_var='RED_LED_BCM_PIN', type=int, default=27, help='BCM port number where the red led is connected to')
+
+    p.add('--temp-measure-period-seconds', env_var='TEMP_MEASURE_PERIOD_SECONDS', type=int, default=1, help='A delay between temperature measurements')
+
+    p.add('-v', '--verbose', help='Enable verbose logging', action='store_const', const=logging.DEBUG)
+
+    return p.parse_args()
 
 @asyncio.coroutine
 def report_temperature():
-    yield from asyncio.sleep(TEMPERATURE_REPORT_PERIOD_SECONDS)
+    yield from asyncio.sleep(options.temp_measure_period_seconds)
     for idx, temp in enumerate(get_temperature()):
         mqtt.publish("dash/temperature/{}".format(idx), "{:4.1f}°".format(temp))
     asyncio.async(report_temperature())
@@ -45,8 +59,8 @@ def get_servo():
 def turn_on_green():
     try:
         import RPIO
-        RPIO.setup(GREEN_LED_PIN, RPIO.OUT)
-        RPIO.output(GREEN_LED_PIN, True)
+        RPIO.setup(options.green_led_bcm_pin, RPIO.OUT)
+        RPIO.output(options.green_led_bcm_pin, True)
     except SystemError:
         print("Not runnig on RPi.")
 
@@ -57,15 +71,17 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
     duty = int(msg.payload)
-    servo.set_servo(PWM_PIN, duty)
+    servo.set_servo(options.servo_bcm_pin, duty)
+
+options = get_options()
 
 servo = get_servo()
 
 mqtt = paho.Client()
 mqtt.on_connect = on_connect
 mqtt.on_message = on_message
-mqtt.username_pw_set(os.environ.get('MQTT_USERNAME'), os.environ.get('MQTT_PASSWORD'))
-mqtt.connect(os.environ.get('MQTT_HOSTNAME'), int(os.environ.get('MQTT_PORT')), keepalive=60)
+mqtt.username_pw_set(options.mqtt_username, options.mqtt_password)
+mqtt.connect(options.mqtt_hostname, options.mqtt_port, keepalive=60)
 mqtt.loop_start()
 
 loop = asyncio.get_event_loop()

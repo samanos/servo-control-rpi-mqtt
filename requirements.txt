@@ -1,3 +1,4 @@
 paho-mqtt==1.2
 w1thermsensor==0.3.2
 git+https://github.com/metachris/RPIO.git@c4e8b73407ddec416d5cabf5057f5ddf8b699c99#egg=RPIO
+configargparse==0.11.0
