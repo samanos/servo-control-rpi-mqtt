@@ -46,14 +46,14 @@ def get_temperature_from_sensor(sensor):
 
 class ConsoleServo:
     def set_servo(self, pin, duty):
-        print("Setting pin {} to {}".format(pin, duty))
+        logging.debug("Setting pin %s to %s", pin, duty)
 
 def get_servo():
     try:
         from RPIO import PWM
         return PWM.Servo()
     except SystemError:
-        print("Not runnig on RPi.")
+        logging.debug("Not on a RPi. Will use a console servo.")
         return ConsoleServo()
 
 def turn_on_green():
@@ -62,10 +62,10 @@ def turn_on_green():
         RPIO.setup(options.green_led_bcm_pin, RPIO.OUT)
         RPIO.output(options.green_led_bcm_pin, True)
     except SystemError:
-        print("Not runnig on RPi.")
+        logging.debug("Not on a RPi. Turning on green led.")
 
 def on_connect(client, userdata, flags, rc):
-    print("Connected")
+    logging.info("Connected to the MQTT broker.")
     client.subscribe("home/servo")
     turn_on_green()
 
@@ -74,6 +74,7 @@ def on_message(client, userdata, msg):
     servo.set_servo(options.servo_bcm_pin, duty)
 
 options = get_options()
+logging.basicConfig(level=options.verbose or logging.INFO)
 
 servo = get_servo()
 
