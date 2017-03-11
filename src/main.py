@@ -16,6 +16,12 @@ def get_options():
 
     p.add('--temp-measure-period-seconds', env_var='TEMP_MEASURE_PERIOD_SECONDS', type=int, default=1, help='A delay between temperature measurements')
 
+    p.add('--initial-middle-temp', env_var='INITIAL_MIDDLE_TEMP', type=float, default=60, help='Initial middle temperature')
+    p.add('--initial-bottom-temp', env_var='INITIAL_BOTTOM_TEMP', type=float, default=40, help='Initial bottom temperature')
+
+    p.add('--valve-full-close-at', env_var='VALVE_FULL_CLOSE_AT', type=int, default=2010, help='Duty cycle at which 4way valve is fully closed')
+    p.add('--valve-full-open-at', env_var='VALVE_FULL_OPEN_AT', type=int, default=850, help='Duty cycle at which 4way valve is fully open')
+
     p.add('-v', '--verbose', help='Enable verbose logging', action='store_const', const=logging.DEBUG)
 
     return p.parse_args()
@@ -27,6 +33,15 @@ def report_temperature():
         print(idx, temp)
         mqtt.publish("dash/temperature/{}".format(idx), "{:4.1f}°".format(temp))
     asyncio.async(report_temperature())
+
+@asyncio.coroutine
+def control_valve():
+    yield from asyncio.sleep(options.temp_measure_period_seconds)
+    control_temp = get_temperature()[0]
+    control = (control_temp - bottom_temp) \ (middle_temp + (middle_temp - bottom_temp))
+    control = max(0, min(1, control))
+    logging.info('Opening valve at {}'.format(control))
+    asyncio.async(control_valve())
 
 def get_temperature():
     try:
@@ -103,13 +118,18 @@ def on_servo_control(msg):
 
 def on_4way_middle_temp(msg):
     logging.info('Received new middle temp %s', msg.payload)
+    middle_temp = float(msg.payload)
 
 def on_4way_bottom_temp(msg):
     logging.info('Received new bottom temp %s', msg.payload)
+    bottom_temp = float(msg.payload)
 
 if __name__ == "__main__":
     options = get_options()
     logging.basicConfig(level=options.verbose or logging.INFO)
+
+    middle_temp = options.initial_middle_temp
+    bottom_temp = options.initial_bottom_temp
 
     servo = get_servo()
     temp_sensor = get_temp_sensor()
