@@ -1,7 +1,5 @@
 import asyncio
 import logging
-import os
-
 import paho.mqtt.client as paho
 
 
@@ -67,11 +65,29 @@ def turn_on_green():
 def on_connect(client, userdata, flags, rc):
     logging.info("Connected to the MQTT broker.")
     client.subscribe("home/servo")
+    client.subscribe("home/4way_valve/middle_temp")
+    client.subscribe("home/4way_valve/bottom_temp")
     turn_on_green()
 
 def on_message(client, userdata, msg):
+    if msg.topic == 'home/servo':
+        on_servo_control(msg)
+    elif msg.topic == 'home/4way_valve/middle_temp':
+        on_4way_middle_temp(msg)
+    elif msg.topic == 'home/4way_valve/bottom_temp':
+        on_4way_bottom_temp(msg)
+    else:
+        logging.info('Received an unhandled message from a topic [%s].', msg.topic)
+
+def on_servo_control(msg):
     duty = int(msg.payload)
     servo.set_servo(options.servo_bcm_pin, duty)
+
+def on_4way_middle_temp(msg):
+    logging.info('Received new middle temp %s', msg.payload)
+
+def on_4way_bottom_temp(msg):
+    logging.info('Received new bottom temp %s', msg.payload)
 
 options = get_options()
 logging.basicConfig(level=options.verbose or logging.INFO)
