@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import paho.mqtt.client as paho
 
 
 def get_options():
@@ -25,13 +24,13 @@ def get_options():
 def report_temperature():
     yield from asyncio.sleep(options.temp_measure_period_seconds)
     for idx, temp in enumerate(get_temperature()):
+        print(idx, temp)
         mqtt.publish("dash/temperature/{}".format(idx), "{:4.1f}°".format(temp))
     asyncio.async(report_temperature())
 
 def get_temperature():
     try:
-        from w1thermsensor import W1ThermSensor
-        return [get_temperature_from_sensor(sensor) for sensor in W1ThermSensor.get_available_sensors()]
+        return [get_temperature_from_sensor(sensor) for sensor in temp_sensor.get_available_sensors()]
     except FileNotFoundError:
         return [1.11, 2.22, 3.33, 4.44]
 
@@ -54,6 +53,15 @@ def get_servo():
         logging.debug("Not on a RPi. Will use a console servo.")
         return ConsoleServo()
 
+def get_temp_sensor():
+    from w1thermsensor import W1ThermSensor
+    try:
+        W1ThermSensor.get_available_sensors()
+        return W1ThermSensor
+    except FileNotFoundError:
+        W1ThermSensor.BASE_DIRECTORY = "/tmp/w1/devices"
+        return W1ThermSensor
+
 def turn_on_green():
     try:
         import RPIO
@@ -61,6 +69,16 @@ def turn_on_green():
         RPIO.output(options.green_led_bcm_pin, True)
     except SystemError:
         logging.debug("Not on a RPi. Turning on green led.")
+
+def get_mqtt_client(options, on_connect, on_message):
+    import paho.mqtt.client as paho
+    mqtt = paho.Client()
+    mqtt.on_connect = on_connect
+    mqtt.on_message = on_message
+    mqtt.username_pw_set(options.mqtt_username, options.mqtt_password)
+    mqtt.connect(options.mqtt_hostname, options.mqtt_port, keepalive=60)
+    mqtt.loop_start()
+    return mqtt
 
 def on_connect(client, userdata, flags, rc):
     logging.info("Connected to the MQTT broker.")
@@ -89,24 +107,19 @@ def on_4way_middle_temp(msg):
 def on_4way_bottom_temp(msg):
     logging.info('Received new bottom temp %s', msg.payload)
 
-options = get_options()
-logging.basicConfig(level=options.verbose or logging.INFO)
+if __name__ == "__main__":
+    options = get_options()
+    logging.basicConfig(level=options.verbose or logging.INFO)
 
-servo = get_servo()
+    servo = get_servo()
+    temp_sensor = get_temp_sensor()
+    mqtt = get_mqtt_client(options, on_connect, on_message)
 
-mqtt = paho.Client()
-mqtt.on_connect = on_connect
-mqtt.on_message = on_message
-mqtt.username_pw_set(options.mqtt_username, options.mqtt_password)
-mqtt.connect(options.mqtt_hostname, options.mqtt_port, keepalive=60)
-mqtt.loop_start()
-
-loop = asyncio.get_event_loop()
-try:
-    asyncio.async(report_temperature())
-    loop.run_forever()
-except KeyboardInterrupt:
-    pass
-finally:
-    loop.close()
-
+    loop = asyncio.get_event_loop()
+    try:
+        asyncio.async(report_temperature())
+        loop.run_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        loop.close()
