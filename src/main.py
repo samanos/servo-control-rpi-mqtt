@@ -13,8 +13,9 @@ def get_options():
     p.add('--servo-bcm-pin', env_var='SERVO_BCM_PIN', type=int, default=18, help='BCM port number where the servo is connected to')
     p.add('--green-led-bcm-pin', env_var='GREEN_LED_BCM_PIN', type=int, default=17, help='BCM port number where the green led is connected to')
     p.add('--red-led-bcm-pin', env_var='RED_LED_BCM_PIN', type=int, default=27, help='BCM port number where the red led is connected to')
+    p.add('--temp-sensor-path', env_var='TEMP_SENSOR_PATH', default='/sys/bus/w1/devices', help='Path to the temperature sensor files')
 
-    p.add('--temp-measure-period-seconds', env_var='TEMP_MEASURE_PERIOD_SECONDS', type=int, default=1, help='A delay between temperature measurements')
+    p.add('--temp-measure-period-seconds', env_var='TEMP_MEASURE_PERIOD_SECONDS', type=int, default=5, help='A delay between temperature measurements')
 
     p.add('--initial-middle-temp', env_var='INITIAL_MIDDLE_TEMP', type=float, default=60, help='Initial middle temperature')
     p.add('--initial-bottom-temp', env_var='INITIAL_BOTTOM_TEMP', type=float, default=40, help='Initial bottom temperature')
@@ -28,20 +29,29 @@ def get_options():
 
 @asyncio.coroutine
 def report_temperature():
-    yield from asyncio.sleep(options.temp_measure_period_seconds)
-    for idx, temp in enumerate(get_temperature()):
-        print(idx, temp)
-        mqtt.publish("dash/temperature/{}".format(idx), "{:4.1f}°".format(temp))
-    asyncio.async(report_temperature())
+    try:
+        for idx, temp in enumerate(get_temperature()):
+            mqtt.publish("dash/temperature/{}".format(idx), "{:4.1f}°".format(temp))
+    except Exception as ex:
+        logging.error('Exception in `report_temperature`: %s', ex)
+    finally:
+        yield from asyncio.sleep(options.temp_measure_period_seconds)
+        asyncio.async(report_temperature())
 
 @asyncio.coroutine
 def control_valve():
-    yield from asyncio.sleep(options.temp_measure_period_seconds)
-    control_temp = get_temperature()[0]
-    control = (control_temp - bottom_temp) \ (middle_temp + (middle_temp - bottom_temp))
-    control = max(0, min(1, control))
-    logging.info('Opening valve at {}'.format(control))
-    asyncio.async(control_valve())
+    try:
+        control_temp = get_temperature()[0]
+        control = (control_temp - bottom_temp) / ((middle_temp - bottom_temp) * 2)
+        control = max(0, min(1, control))
+        mqtt.publish("dash/open_valve", "{:4.1f}%".format(control * 100))
+        duty = options.valve_full_close_at - (control * (options.valve_full_close_at - options.valve_full_open_at))
+        servo.set_servo(options.servo_bcm_pin, duty)
+    except Exception as ex:
+        logging.error('Exception in `control_valve`: %s', ex)
+    finally:
+        yield from asyncio.sleep(options.temp_measure_period_seconds)
+        asyncio.async(control_valve())
 
 def get_temperature():
     try:
@@ -68,14 +78,10 @@ def get_servo():
         logging.debug("Not on a RPi. Will use a console servo.")
         return ConsoleServo()
 
-def get_temp_sensor():
+def get_temp_sensor(options):
     from w1thermsensor import W1ThermSensor
-    try:
-        W1ThermSensor.get_available_sensors()
-        return W1ThermSensor
-    except FileNotFoundError:
-        W1ThermSensor.BASE_DIRECTORY = "/tmp/w1/devices"
-        return W1ThermSensor
+    W1ThermSensor.BASE_DIRECTORY = options.temp_sensor_path
+    return W1ThermSensor
 
 def turn_on_green():
     try:
@@ -83,7 +89,7 @@ def turn_on_green():
         RPIO.setup(options.green_led_bcm_pin, RPIO.OUT)
         RPIO.output(options.green_led_bcm_pin, True)
     except SystemError:
-        logging.debug("Not on a RPi. Turning on green led.")
+        logging.debug("Not on a RPi. Turning on green virtual console led. *blink*")
 
 def get_mqtt_client(options, on_connect, on_message):
     import paho.mqtt.client as paho
@@ -97,9 +103,14 @@ def get_mqtt_client(options, on_connect, on_message):
 
 def on_connect(client, userdata, flags, rc):
     logging.info("Connected to the MQTT broker.")
+
+    client.publish("home/4way_valve/middle_temp", middle_temp, retain=True)
+    client.publish("home/4way_valve/bottom_temp", bottom_temp, retain=True)
+
     client.subscribe("home/servo")
     client.subscribe("home/4way_valve/middle_temp")
     client.subscribe("home/4way_valve/bottom_temp")
+
     turn_on_green()
 
 def on_message(client, userdata, msg):
@@ -118,10 +129,12 @@ def on_servo_control(msg):
 
 def on_4way_middle_temp(msg):
     logging.info('Received new middle temp %s', msg.payload)
+    global middle_temp
     middle_temp = float(msg.payload)
 
 def on_4way_bottom_temp(msg):
     logging.info('Received new bottom temp %s', msg.payload)
+    global bottom_temp
     bottom_temp = float(msg.payload)
 
 if __name__ == "__main__":
@@ -132,12 +145,13 @@ if __name__ == "__main__":
     bottom_temp = options.initial_bottom_temp
 
     servo = get_servo()
-    temp_sensor = get_temp_sensor()
+    temp_sensor = get_temp_sensor(options)
     mqtt = get_mqtt_client(options, on_connect, on_message)
 
     loop = asyncio.get_event_loop()
     try:
         asyncio.async(report_temperature())
+        asyncio.async(control_valve())
         loop.run_forever()
     except KeyboardInterrupt:
         pass
