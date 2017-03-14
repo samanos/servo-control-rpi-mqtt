@@ -46,7 +46,7 @@ def control_valve():
         control = max(0, min(1, control))
         mqtt.publish("dash/open_valve", "{:4.1f}%".format(control * 100))
         duty = options.valve_full_close_at - (control * (options.valve_full_close_at - options.valve_full_open_at))
-        servo.set_servo(options.servo_bcm_pin, prepare_duty_cycle(duty))
+        mqtt.publish("home/servo", prepare_duty_cycle(duty))
     except Exception as ex:
         logging.error('Exception in `control_valve`: %s', ex)
     finally:
