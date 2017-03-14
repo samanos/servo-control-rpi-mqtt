@@ -107,9 +107,6 @@ def get_mqtt_client(options, on_connect, on_message):
 def on_connect(client, userdata, flags, rc):
     logging.info("Connected to the MQTT broker.")
 
-    client.publish("home/4way_valve/middle_temp", middle_temp, retain=True)
-    client.publish("home/4way_valve/bottom_temp", bottom_temp, retain=True)
-
     client.subscribe("home/servo")
     client.subscribe("home/4way_valve/middle_temp")
     client.subscribe("home/4way_valve/bottom_temp")
