@@ -1,6 +1,7 @@
-uuid: d19f24701d5225dd244e50f37269acf6aa1ef448b335d7c71ceca1120b82ad
+uuid: 0bd09e2bd1d789ba458fec16b7e572aa09159dd9a093be60d053b652d3bbb0
 destination: /usr/src/app
 port: 22
 ignore:
   - .git
   - node_modules/
+local_resinos: {}
