@@ -73,9 +73,13 @@ class ConsoleServo:
     def set_servo(self, pin, duty):
         logging.debug("Setting pin %s to %s", pin, duty)
 
-def get_servo():
+def get_servo(options):
     try:
         from RPIO import PWM
+        if options.verbose is None:
+            PWM.set_loglevel(PWM.LOG_LEVEL_ERRORS)
+        else:
+            PWM.set_loglevel(PWM.LOG_LEVEL_DEBUG)
         return PWM.Servo()
     except SystemError:
         logging.debug("Not on a RPi. Will use a console servo.")
@@ -144,7 +148,7 @@ if __name__ == "__main__":
     middle_temp = options.initial_middle_temp
     bottom_temp = options.initial_bottom_temp
 
-    servo = get_servo()
+    servo = get_servo(options)
     temp_sensor = get_temp_sensor(options)
     mqtt = get_mqtt_client(options, on_connect, on_message)
 
