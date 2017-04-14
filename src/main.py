@@ -46,13 +46,15 @@ def control_valve():
         control = max(0, min(1, control))
         mqtt.publish("dash/open_valve", "{:4.1f}%".format(control * 100))
         duty = options.valve_full_close_at - (control * (options.valve_full_close_at - options.valve_full_open_at))
-        duty = int(duty / 10) * 10 # duty needs to be divisible by 10
-        servo.set_servo(options.servo_bcm_pin, duty)
+        servo.set_servo(options.servo_bcm_pin, prepare_duty_cycle(duty))
     except Exception as ex:
         logging.error('Exception in `control_valve`: %s', ex)
     finally:
         yield from asyncio.sleep(options.temp_measure_period_seconds)
         asyncio.async(control_valve())
+
+def prepare_duty_cycle(duty_cycle):
+    return int(duty_cycle / 10) * 10 # duty needs to be divisible by 10
 
 def get_temperature():
     try:
@@ -126,7 +128,7 @@ def on_message(client, userdata, msg):
 
 def on_servo_control(msg):
     duty = int(msg.payload)
-    servo.set_servo(options.servo_bcm_pin, duty)
+    servo.set_servo(options.servo_bcm_pin, prepare_duty_cycle(duty))
 
 def on_4way_middle_temp(msg):
     logging.info('Received new middle temp %s', msg.payload)
