@@ -1,14 +1,10 @@
 # base-image for python on any machine using a template variable,
 # see more about dockerfile templates here:http://docs.resin.io/pages/deployment/docker-templates
-FROM resin/%%RESIN_MACHINE_NAME%%-alpine-python:3.6.0
+FROM balenalib/%%BALENA_ARCH%%-alpine-python:3.6-3.6-build
 
-COPY sshd_config /etc/ssh/sshd_config
-
-RUN curl https://github.com/2m.keys -o /etc/ssh/authorized_keys
-RUN chmod 600 /etc/ssh/authorized_keys
-
-RUN apk add --update openssh && \
-    rc-update add sshd
+# for compiling C code in RPIO
+RUN apk update
+RUN apk add linux-headers
 
 # Set our working directory
 WORKDIR /usr/src/app
@@ -21,9 +17,6 @@ RUN pip install -r /requirements.txt
 
 # This will copy all files in our root to the working  directory in the container
 COPY . ./
-
-# switch on systemd init system in container
-ENV INITSYSTEM on
 
 # main.py will run when container starts up on the device
 CMD ["python","src/main.py"]

@@ -1,0 +1,3 @@
+FROM zinen2/alpine-pigpiod:arm32v7
+
+ADD access /opt/pigpio/access

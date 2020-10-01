@@ -1,5 +1,5 @@
 paho-mqtt==1.2
 w1thermsensor==0.3.2
 #git+https://github.com/metachris/RPIO.git@c4e8b73407ddec416d5cabf5057f5ddf8b699c99#egg=RPIO
-git+https://github.com/doom-fr/RPIO.git@64a147a70b65d43dff96f7a1d495b11dc4cc1eac#egg=RPIO
+git+https://github.com/2m/RPIO.git@3849ab244a0bada78269a0418deae230de38f68e#egg=RPIO
 configargparse==0.11.0

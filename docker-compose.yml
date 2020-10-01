@@ -1,0 +1,19 @@
+version: "2.1"
+services:
+  pigpiod:
+    build: pigpiod/.
+    restart: always
+
+    # Privileged required to access GPIO.
+    privileged: true
+
+    ports:
+    - 8888:8888
+
+
+  main:
+    build: .
+    restart: always
+
+    depends_on:
+    - pigpiod
