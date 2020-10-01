@@ -23,7 +23,7 @@ def get_options():
     p.add('--valve-full-close-at', env_var='VALVE_FULL_CLOSE_AT', type=int, default=2010, help='Duty cycle at which 4way valve is fully closed')
     p.add('--valve-full-open-at', env_var='VALVE_FULL_OPEN_AT', type=int, default=850, help='Duty cycle at which 4way valve is fully open')
 
-    p.add('-v', '--verbose', help='Enable verbose logging', action='store_const', const=logging.DEBUG)
+    p.add('-v', '--verbose', env_var='VERBOSE', help='Enable verbose logging', action='store_const', const=logging.DEBUG)
 
     return p.parse_args()
 
