@@ -1,22 +1,17 @@
 # base-image for python on any machine using a template variable,
 # see more about dockerfile templates here:http://docs.resin.io/pages/deployment/docker-templates
-FROM balenalib/%%BALENA_ARCH%%-alpine-python:3.6-3.6-build
+FROM balenalib/%%BALENA_ARCH%%-alpine-python:3.8-3.12-build
 
-# for compiling C code in RPIO
-RUN apk update
-RUN apk add linux-headers
+ENV POETRY_VERSION=1.0.10
 
 # Set our working directory
 WORKDIR /usr/src/app
 
-# Copy requirements.txt first for better cache on later pushes
-COPY ./requirements.txt /requirements.txt
-
-# pip install python deps from requirements.txt on the resin.io build server
-RUN pip install -r /requirements.txt
+RUN pip install "poetry==$POETRY_VERSION"
 
 # This will copy all files in our root to the working  directory in the container
 COPY . ./
 
-# main.py will run when container starts up on the device
-CMD ["python","src/main.py"]
+RUN poetry install
+
+CMD ["poetry", "run", "main"]
