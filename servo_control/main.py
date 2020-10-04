@@ -1,4 +1,4 @@
-from typing import Iterator, Callable, Protocol, Tuple
+from typing import Iterator, Callable, Protocol, Tuple, List
 import asyncio
 import logging
 from dotenv import load_dotenv
@@ -30,6 +30,8 @@ class PiGpio(Protocol):
     def set_servo_pulsewidth(self, pin: int, pulse: int) -> None:
         ...
 
+    connected: bool
+
 
 class Topic:
     servo = "home/servo"
@@ -43,6 +45,7 @@ class Topic:
 
 
 class Options(BaseModel):
+    pigpio_hostname: str
     mqtt_username: str
     mqtt_password: str
     mqtt_hostname: str
@@ -69,6 +72,12 @@ def get_options() -> Options:
 
     p = configargparse.ArgParser()
     p.add(
+        "--pigpio-hostname",
+        env_var="PIGPIO_HOSTNAME",
+        help="pigpio hostname",
+        default="pigpiod",
+    )
+    p.add(
         "--mqtt-username",
         required=True,
         env_var="MQTT_USERNAME",
@@ -93,7 +102,6 @@ def get_options() -> Options:
         type=int,
         help="MQTT broker port",
     )
-
     p.add(
         "--servo-bcm-pin",
         env_var="SERVO_BCM_PIN",
@@ -121,7 +129,6 @@ def get_options() -> Options:
         default="/sys/bus/w1/devices",
         help="Path to the temperature sensor files",
     )
-
     p.add(
         "--temp-measure-period-seconds",
         env_var="TEMP_MEASURE_PERIOD_SECONDS",
@@ -129,7 +136,6 @@ def get_options() -> Options:
         default=5,
         help="A delay between temperature measurements",
     )
-
     p.add(
         "--initial-middle-temp",
         env_var="INITIAL_MIDDLE_TEMP",
@@ -144,7 +150,6 @@ def get_options() -> Options:
         default=40,
         help="Initial bottom temperature",
     )
-
     p.add(
         "--valve-full-close-at",
         env_var="VALVE_FULL_CLOSE_AT",
@@ -159,7 +164,6 @@ def get_options() -> Options:
         default=850,
         help="Duty cycle at which 4way valve is fully open",
     )
-
     p.add(
         "-v",
         "--verbose",
@@ -172,6 +176,7 @@ def get_options() -> Options:
 
     args = p.parse_args()
     return Options(
+        pigpio_hostname=args.pigpio_hostname,
         mqtt_username=args.mqtt_username,
         mqtt_password=args.mqtt_password,
         mqtt_hostname=args.mqtt_hostname,
@@ -189,36 +194,24 @@ def get_options() -> Options:
     )
 
 
-async def report_temperature(options: Options, mqtt: PahoClient, pi: PiGpio) -> None:
-    while True:
-        try:
-            for idx, temp in enumerate(get_temperature(options, pi)):
-                mqtt.publish(Topic.temp(idx), f"{temp:4.1f}°")
-        except Exception as ex:
-            logging.error("Exception in `report_temperature`: %s", ex)
-        finally:
-            await asyncio.sleep(options.temp_measure_period_seconds)
+def report_temperature(mqtt: PahoClient, temps: List[float]) -> None:
+    for idx, temp in enumerate(temps):
+        mqtt.publish(Topic.temp(idx), f"{temp:4.1f}°")
 
 
-async def control_valve(
-    options: Options, mqtt: PahoClient, pi: PiGpio, state: State
+def control_valve(
+    options: Options, mqtt: PahoClient, state: State, temps: List[float]
 ) -> None:
-    while True:
-        try:
-            control_temp = list(get_temperature(options, pi))[0]
-            control = (control_temp - state.bottom_temp) / (
-                (state.middle_temp - state.bottom_temp) * 2
-            )
-            control = max(0, min(1, control))
-            mqtt.publish(Topic.valve, "{:4.1f}%".format(control * 100))
-            duty = options.valve_full_close_at - (
-                control * (options.valve_full_close_at - options.valve_full_open_at)
-            )
-            mqtt.publish(Topic.servo, prepare_duty_cycle(duty))
-        except Exception as ex:
-            logging.error("Exception in `control_valve`: %s", ex)
-        finally:
-            await asyncio.sleep(options.temp_measure_period_seconds)
+    control_temp = temps[0]
+    control = (control_temp - state.bottom_temp) / (
+        (state.middle_temp - state.bottom_temp) * 2
+    )
+    control = max(0, min(1, control))
+    mqtt.publish(Topic.valve, "{:4.1f}%".format(control * 100))
+    duty = options.valve_full_close_at - (
+        control * (options.valve_full_close_at - options.valve_full_open_at)
+    )
+    mqtt.publish(Topic.servo, prepare_duty_cycle(duty))
 
 
 def prepare_duty_cycle(duty_cycle: float) -> int:
@@ -231,33 +224,28 @@ def get_temperature(options: Options, pi: PiGpio) -> Iterator[float]:
 
     Heavily inspired by examples in http://abyz.me.uk/rpi/pigpio/examples.html
     """
-    try:
-        c, files_bytes = pi.file_list(f"{options.temp_sensor_path}/28-00*/w1_slave")
-        files = files_bytes.decode("utf8")
+    c, files_bytes = pi.file_list(f"{options.temp_sensor_path}/28-00*/w1_slave")
+    files = files_bytes.decode("utf8")
 
-        if c >= 0:
-            for sensor in files[:-1].split("\n"):
-                h = pi.file_open(sensor, pigpio.FILE_READ)
-                c, data_bytes = pi.file_read(
-                    h, 1000
-                )  # 1000 is plenty to read full file.
-                pi.file_close(h)
+    if c >= 0:
+        for sensor in files[:-1].split("\n"):
+            h = pi.file_open(sensor, pigpio.FILE_READ)
+            c, data_bytes = pi.file_read(h, 1000)  # 1000 is plenty to read full file.
+            pi.file_close(h)
 
-                data = data_bytes.decode("utf8")
+            data = data_bytes.decode("utf8")
 
-                """
-                Typical file contents
+            """
+            Typical file contents
 
-                73 01 4b 46 7f ff 0d 10 41 : crc=41 YES
-                73 01 4b 46 7f ff 0d 10 41 t=23187
-                """
+            73 01 4b 46 7f ff 0d 10 41 : crc=41 YES
+            73 01 4b 46 7f ff 0d 10 41 t=23187
+            """
 
-                if "YES" in data:
-                    (discard, sep, reading) = data.partition(" t=")
-                    t = float(reading) / 1000.0
-                    yield t
-    except Exception:
-        return [1.11, 2.22]
+            if "YES" in data:
+                (discard, sep, reading) = data.partition(" t=")
+                t = float(reading) / 1000.0
+                yield t
 
 
 def turn_on_green(pi: PiGpio, options: Options) -> None:
@@ -323,21 +311,31 @@ async def main() -> None:
     logging.basicConfig(level=logging.DEBUG if options.verbose else logging.INFO)
 
     state = State(middle_temp=0, bottom_temp=0)
-    pi: PiGpio = pigpio.pi()
+
+    pi: PiGpio = pigpio.pi(options.pigpio_hostname)
+    if not pi.connected:
+        raise AssertionError("Unable to connect to pigpio deamon")
+
     mqtt = get_mqtt_client(
         options,
         on_connect_callback(options, pi),
         on_message_callback(options, pi, state),
     )
 
-    try:
-        await asyncio.gather(
-            report_temperature(options, mqtt, pi),
-            control_valve(options, mqtt, pi, state),
-        )
-    except KeyboardInterrupt:
-        pass
+    while True:
+        try:
+            temps = list(get_temperature(options, pi))
+
+            report_temperature(mqtt, temps)
+            control_valve(options, mqtt, state, temps)
+        except Exception as ex:
+            logging.exception("Error in the main loop", ex)
+
+        await asyncio.sleep(options.temp_measure_period_seconds)
 
 
 def run() -> None:
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

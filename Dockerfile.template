@@ -12,6 +12,6 @@ RUN pip install "poetry==$POETRY_VERSION"
 # This will copy all files in our root to the working  directory in the container
 COPY . ./
 
-RUN poetry install
+RUN poetry install --no-dev
 
 CMD ["poetry", "run", "main"]
