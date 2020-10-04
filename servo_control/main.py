@@ -252,6 +252,10 @@ def turn_on_green(pi: PiGpio, options: Options) -> None:
     pi.write(options.green_led_bcm_pin, 1)
 
 
+def red_led(pi: PiGpio, options: Options, on: bool) -> None:
+    pi.write(options.red_led_bcm_pin, 1 if on else 0)
+
+
 def get_mqtt_client(options: Options, on_connect, on_message) -> PahoClient:
     mqtt = PahoClient()
     mqtt.on_connect = on_connect
@@ -324,10 +328,12 @@ async def main() -> None:
 
     while True:
         try:
+            red_led(pi, options, True)
             temps = list(get_temperature(options, pi))
 
             report_temperature(mqtt, temps)
             control_valve(options, mqtt, state, temps)
+            red_led(pi, options, False)
         except Exception as ex:
             logging.exception("Error in the main loop", ex)
 
