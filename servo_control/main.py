@@ -268,27 +268,35 @@ def get_mqtt_client(options: Options, on_connect, on_message) -> PahoClient:
 
 def on_connect_callback(options: Options, pi: PiGpio) -> Callable:
     def on_connect(client, userdata, flags, rc):
-        logging.info("Connected to the MQTT broker.")
+        try:
+            logging.info("Connected to the MQTT broker.")
 
-        client.subscribe(Topic.servo)
-        client.subscribe(Topic.middle_temp)
-        client.subscribe(Topic.bottom_temp)
+            client.subscribe(Topic.servo)
+            client.subscribe(Topic.middle_temp)
+            client.subscribe(Topic.bottom_temp)
 
-        turn_on_green(pi, options)
+            turn_on_green(pi, options)
+        except Exception as ex:
+            logging.exception("Error in the on_connect", ex)
 
     return on_connect
 
 
 def on_message_callback(options: Options, pi: PiGpio, state: State) -> Callable:
     def on_message(client, userdata, msg):
-        if msg.topic == Topic.servo:
-            on_servo_control(pi, options, msg)
-        elif msg.topic == Topic.middle_temp:
-            on_4way_middle_temp(state, msg)
-        elif msg.topic == Topic.bottom_temp:
-            on_4way_bottom_temp(state, msg)
-        else:
-            logging.info("Received an unhandled message from a topic [%s].", msg.topic)
+        try:
+            if msg.topic == Topic.servo:
+                on_servo_control(pi, options, msg)
+            elif msg.topic == Topic.middle_temp:
+                on_4way_middle_temp(state, msg)
+            elif msg.topic == Topic.bottom_temp:
+                on_4way_bottom_temp(state, msg)
+            else:
+                logging.info(
+                    "Received an unhandled message from a topic [%s].", msg.topic
+                )
+        except Exception as ex:
+            logging.exception("Error in the on_message", ex)
 
     return on_message
 
