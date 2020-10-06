@@ -276,8 +276,8 @@ def on_connect_callback(options: Options, pi: PiGpio) -> Callable:
             client.subscribe(Topic.bottom_temp)
 
             turn_on_green(pi, options)
-        except Exception as ex:
-            logging.exception("Error in the on_connect", ex)
+        except Exception:
+            logging.exception("Error in the on_connect")
 
     return on_connect
 
@@ -295,8 +295,8 @@ def on_message_callback(options: Options, pi: PiGpio, state: State) -> Callable:
                 logging.info(
                     "Received an unhandled message from a topic [%s].", msg.topic
                 )
-        except Exception as ex:
-            logging.exception("Error in the on_message", ex)
+        except Exception:
+            logging.exception(f"Error in the on_message, msg=[{msg}]")
 
     return on_message
 
@@ -342,8 +342,8 @@ async def main() -> None:
             report_temperature(mqtt, temps)
             control_valve(options, mqtt, state, temps)
             red_led(pi, options, False)
-        except Exception as ex:
-            logging.exception("Error in the main loop", ex)
+        except Exception:
+            logging.exception("Error in the main loop")
 
         await asyncio.sleep(options.temp_measure_period_seconds)
 
