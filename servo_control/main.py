@@ -225,9 +225,8 @@ def get_temperature(options: Options, pi: PiGpio) -> Iterator[float]:
     Heavily inspired by examples in http://abyz.me.uk/rpi/pigpio/examples.html
     """
     c, files_bytes = pi.file_list(f"{options.temp_sensor_path}/28-00*/w1_slave")
-    files = files_bytes.decode("utf8")
-
     if c >= 0:
+        files = files_bytes.decode("utf8")
         for sensor in files[:-1].split("\n"):
             h = pi.file_open(sensor, pigpio.FILE_READ)
             c, data_bytes = pi.file_read(h, 1000)  # 1000 is plenty to read full file.
@@ -246,6 +245,10 @@ def get_temperature(options: Options, pi: PiGpio) -> Iterator[float]:
                 (discard, sep, reading) = data.partition(" t=")
                 t = float(reading) / 1000.0
                 yield t
+    else:
+        raise AssertionError(
+            f"Unable to get file list. count=[{c}], bytes=[{files_bytes!r}]"
+        )
 
 
 def turn_on_green(pi: PiGpio, options: Options) -> None:
