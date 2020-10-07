@@ -296,7 +296,7 @@ def on_message_callback(options: Options, pi: PiGpio, state: State) -> Callable:
                     "Received an unhandled message from a topic [%s].", msg.topic
                 )
         except Exception:
-            logging.exception(f"Error in the on_message, msg=[{msg}]")
+            logging.exception(f"Error in the on_message, payload=[{msg.payload}]")
 
     return on_message
 
