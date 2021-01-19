@@ -337,7 +337,8 @@ async def main() -> None:
         on_message_callback(options, pi, state),
     )
 
-    while True:
+    keep_going = True
+    while keep_going:
         try:
             red_led(pi, options, True)
             temps = list(get_temperature(options, pi))
@@ -347,6 +348,7 @@ async def main() -> None:
             red_led(pi, options, False)
         except Exception:
             logging.exception("Error in the main loop")
+            keep_going = False
 
         await asyncio.sleep(options.temp_measure_period_seconds)
 
