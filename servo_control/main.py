@@ -1,4 +1,4 @@
-from typing import Iterator, Callable, Protocol, Tuple, List
+from typing import Iterator, Callable, Protocol, Tuple, List, Optional
 import asyncio
 import logging
 from dotenv import load_dotenv
@@ -63,8 +63,8 @@ class Options(BaseModel):
 
 
 class State(BaseModel):
-    middle_temp: float
-    bottom_temp: float
+    middle_temp: Optional[float]
+    bottom_temp: Optional[float]
 
 
 def get_options() -> Options:
@@ -203,6 +203,15 @@ def control_valve(
     options: Options, mqtt: PahoClient, state: State, temps: List[float]
 ) -> None:
     control_temp = temps[0]
+
+    if state.bottom_temp is None:
+        logging.info("Bottom temp not set. Refusing control.")
+        return
+
+    if state.middle_temp is None:
+        logging.info("Middle temp not set. Refusing control.")
+        return
+
     control = (control_temp - state.bottom_temp) / (
         (state.middle_temp - state.bottom_temp) * 2
     )
@@ -325,7 +334,7 @@ async def main() -> None:
     options = get_options()
     logging.basicConfig(level=logging.DEBUG if options.verbose else logging.INFO)
 
-    state = State(middle_temp=0, bottom_temp=0)
+    state = State(middle_temp=None, bottom_temp=None)
 
     pi: PiGpio = pigpio.pi(options.pigpio_hostname)
     if not pi.connected:
