@@ -27,3 +27,9 @@ When running the app make sure that the following environment and configuration 
 | 4.         | Gray   | 15           | GPIO 22      | W1 Temp   |
 | 5.         | Gray   | 17           | 3v3 Power    |           |
 | 6.         | Brown  | 12           | GPIO 18      | Servo     |
+
+# Save MQTT Dash settings
+
+```bash
+moquitto_sub --url mqtt://user:pass@hostname:port/metrics/exchange -C 1 | jq --indent 4 > dash.json
+```
