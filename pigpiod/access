@@ -1,1 +1,1 @@
-/sys/bus/w1/devices/28*/w1_slave r
+/sys/bus/w1/devices/*/w1_slave r
