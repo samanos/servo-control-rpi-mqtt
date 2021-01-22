@@ -233,7 +233,7 @@ def get_temperature(options: Options, pi: PiGpio) -> Iterator[float]:
 
     Heavily inspired by examples in http://abyz.me.uk/rpi/pigpio/examples.html
     """
-    c, files_bytes = pi.file_list(f"{options.temp_sensor_path}/28-00*/w1_slave")
+    c, files_bytes = pi.file_list(f"{options.temp_sensor_path}/*/w1_slave")
     if c >= 0:
         files = files_bytes.decode("utf8")
         for sensor in files[:-1].split("\n"):
